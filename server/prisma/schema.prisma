@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_DB_URI")
+}
+
+enum AppRole {
+  admin
+  operator
+  base
+  viewer
+
+  @@map("app_role")
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  UNKNOWN
+
+  @@map("device_status")
+}
+
+enum DeviceKind {
+  BMC
+  PAST
+  HOMO
+  CHILL
+  CIP
+  FLOW
+  TANK
+  VAC
+  VALVE
+  CONV
+
+  @@map("device_kind")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique @db.Text
+  passwordHash String   @map("password_hash") @db.Text
+  name         String   @db.Text
+  role         AppRole  @default(base)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("users")
+}
+
+model Device {
+  id               String       @id @db.Text
+  kind             DeviceKind
+  status           DeviceStatus @default(UNKNOWN)
+  lastSeenAt       DateTime?    @map("last_seen_at") @db.Timestamptz(6)
+  lastDisconnectAt DateTime?    @map("last_disconnect_at") @db.Timestamptz(6)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  telemetry Telemetry[]
+  alerts    Alert[]
+
+  @@index([status])
+  @@index([lastSeenAt])
+  @@map("devices")
+}
+
+model Telemetry {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId    String   @map("device_id") @db.Text
+  ts          DateTime @db.Timestamptz(6)
+  payload     Json     @db.JsonB
+  temperature Float?   @db.DoublePrecision
+  humidity    Float?   @db.DoublePrecision
+  pressure    Float?   @db.DoublePrecision
+  battery     Float?   @db.DoublePrecision
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, ts(sort: Desc)])
+  @@map("telemetry")
+}
+
+model Alert {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  deviceId    String   @map("device_id") @db.Text
+  type        String   @db.Text // e.g., 'TEMPERATURE', 'PRESSURE'
+  message     String   @db.Text
+  value       Float    @db.DoublePrecision
+  threshold   Float    @db.DoublePrecision
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  acknowledged Boolean @default(false)
+
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, createdAt(sort: Desc)])
+  @@map("alerts")
+}
+
+
