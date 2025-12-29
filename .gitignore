@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+node_modules/
+.env
+.vscode/
+dist/
+build/
+.DS_Store
+npm-debug.log
+yarn-error.log
